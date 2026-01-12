@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -23,4 +25,20 @@ func New() (*Config, error) {
 		TelegramToken: tg_token,
 		LogLevel:      loglevel,
 	}, nil
+}
+
+func SetConfigLevel(conf Config, programmLevel *slog.LevelVar) {
+	level := strings.ToUpper(conf.LogLevel)
+	if level != "INFO" {
+		switch level {
+		case "DEBUG":
+			programmLevel.Set(slog.LevelDebug)
+		case "ERROR":
+			programmLevel.Set(slog.LevelError)
+		case "WARN", "WARNING":
+			programmLevel.Set(slog.LevelWarn)
+		default:
+			programmLevel.Set(slog.LevelInfo)
+		}
+	}
 }

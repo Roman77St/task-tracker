@@ -3,7 +3,7 @@ package main
 import (
 	"log/slog"
 	"os"
-	"strings"
+	"strconv"
 	"task-traker/internal/config"
 	"task-traker/pkg/telegram"
 
@@ -24,39 +24,27 @@ func main() {
 	}
 
 	// Загружаем конфигурацию
-	config, err := config.New()
+	conf, err := config.New()
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
 	// Устанавливаем уровень логгирования из конфига
-	setConfigLevel(*config, programLevel)
+	config.SetConfigLevel(*conf, programLevel)
 
 	// Инициализируем телеграм бот
-	bot, err := telegram.NewClient(config.TelegramToken)
+	bot, err := telegram.NewClient(conf.TelegramToken)
 	if err != nil {
 		slog.Error("bot authorization error", "error", err)
 	}
 
 	// Просто тест
-	err = bot.SendMessage(1178229376, "Hello World")
+	id, err := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
+	if err != nil {
+		slog.Error("Невозможно конвертировать число")
+	}
+	err = bot.SendMessage(id, "Hello World")
 	if err != nil {
 		slog.Warn("message not sent", "warning", err)
-	}
-}
-
-func setConfigLevel(conf config.Config, programmLevel *slog.LevelVar) {
-	level := strings.ToUpper(conf.LogLevel)
-	if level != "INFO" {
-		switch level {
-		case "DEBUG":
-			programmLevel.Set(slog.LevelDebug)
-		case "ERROR":
-			programmLevel.Set(slog.LevelError)
-		case "WARN", "WARNING":
-			programmLevel.Set(slog.LevelWarn)
-		default:
-			programmLevel.Set(slog.LevelInfo)
-		}
 	}
 }

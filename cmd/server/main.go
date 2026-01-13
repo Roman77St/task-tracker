@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"task-traker/internal/config"
 	"task-traker/internal/repository"
+	"task-traker/internal/service"
 	"task-traker/pkg/telegram"
 
 	"github.com/joho/godotenv"
@@ -42,13 +43,22 @@ func main() {
 	}
 
 	//Инициализируем базу данных
-	rep, err := repository.InitDB(ctx)
+	db, err := repository.InitDB(ctx)
 	if err != nil {
 		slog.Error("Database connection error", "error", err)
 		os.Exit(1)
 	}
+	defer db.DB.Close()
 
-	_ = rep.DB
+	// Создаем сервис и передаём ему репозиторий.
+	taskService := service.TaskService{
+		Repo: db,
+	}
+	testId, _ := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
+	err = taskService.CreateTask(ctx, testId, "Тестовая задача", "15.01.2026 15:00")
+	if err != nil {
+    	slog.Error("failed to create task", "error", err)
+}
 
 	// Просто тест
 	id, err := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)

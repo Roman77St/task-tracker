@@ -25,7 +25,7 @@ func InitDB(ctx context.Context) (*Repository, error) {
 	return &Repository{DB: conn}, nil
 }
 
-func (r Repository) Create(ctx context.Context, task *domain.Task) error {
+func (r *Repository) Create(ctx context.Context, task *domain.Task) error {
 	query := `
 	INSERT INTO tasks (user_id, title, deadline)
 	VALUES ($1, $2, $3);
@@ -41,4 +41,8 @@ func (r Repository) Create(ctx context.Context, task *domain.Task) error {
 		return err
 	}
 	return nil
+}
+
+func (r *Repository) GetActiveTasks(ctx context.Context) ([]domain.Task, error) {
+	return  nil, nil
 }

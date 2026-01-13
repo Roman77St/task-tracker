@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"strconv"
 	"task-traker/internal/config"
+	"task-traker/internal/repository"
 	"task-traker/pkg/telegram"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	ctx := context.TODO()
 	// Инициализируем начальный логгер
 	programLevel := &slog.LevelVar{}
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: programLevel})
@@ -37,6 +40,15 @@ func main() {
 	if err != nil {
 		slog.Error("bot authorization error", "error", err)
 	}
+
+	//Инициализируем базу данных
+	rep, err := repository.InitDB(ctx)
+	if err != nil {
+		slog.Error("Database connection error", "error", err)
+		os.Exit(1)
+	}
+
+	_ = rep.DB
 
 	// Просто тест
 	id, err := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)

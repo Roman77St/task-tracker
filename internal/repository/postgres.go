@@ -16,11 +16,11 @@ func InitDB(ctx context.Context) (*Repository, error) {
 	connStr := os.Getenv("DATABASE_URL")
 	conn, err := pgxpool.New(ctx, connStr)
 	if err != nil {
-		return &Repository{}, err
+		return nil, err
 	}
 	err = conn.Ping(ctx)
 	if err != nil {
-		return &Repository{}, err
+		return nil, err
 	}
 	return &Repository{DB: conn}, nil
 }

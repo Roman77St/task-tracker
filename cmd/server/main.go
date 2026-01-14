@@ -4,8 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"strconv"
+	"os/signal"
+
 	"task-traker/internal/config"
+	"task-traker/internal/delivery/telegramHandler"
 	"task-traker/internal/repository"
 	"task-traker/internal/service"
 	"task-traker/pkg/telegram"
@@ -14,13 +16,14 @@ import (
 )
 
 func main() {
-	ctx := context.TODO()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 	// Инициализируем начальный логгер
 	programLevel := &slog.LevelVar{}
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: programLevel})
 	slog.SetDefault(slog.New(logHandler))
 
-	// Загружаем переменные среды из файла .env
+	// Загружаем переменные среды из файла .envh.Bot.SendMessage(m.Chat.ID, "Пример: /add Задача, 20.01.2026 15:00")
 	err := godotenv.Load()
 	if err != nil {
 		slog.Error("Error loading .enf file")
@@ -54,19 +57,14 @@ func main() {
 	taskService := service.TaskService{
 		Repo: db,
 	}
-	testId, _ := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
-	err = taskService.CreateTask(ctx, testId, "Тестовая задача", "15.01.2026 15:00")
-	if err != nil {
-    	slog.Error("failed to create task", "error", err)
-}
 
-	// Просто тест
-	id, err := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
-	if err != nil {
-		slog.Error("Невозможно конвертировать число")
+	handler := telegramHandler.Handler{
+		Bot: bot,
+		TaskService: &taskService,
 	}
-	err = bot.SendMessage(id, "Hello World")
+
+	err = handler.Start(ctx)
 	if err != nil {
-		slog.Warn("message not sent", "warning", err)
+		slog.Error("Telegram answer", "error", err)
 	}
 }

@@ -16,12 +16,20 @@ func NewClient(tg_token string) (*Client, error) {
 		return nil, err
 	}
 	bot.Debug = true
-	slog.Info("Authorized on account", "username", bot.Self.UserName)
+	slog.Info("bot authorized", "account", bot.Self.UserName)
 	return &Client{bot: bot}, nil
 }
 
-func (c Client) SendMessage(chatID int64, text string) error {
+func (c *Client) SendMessage(chatID int64, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 	_, err := c.bot.Send(msg)
 	return err
+}
+
+func (c *Client) GetBotAPI() *tgbotapi.BotAPI {
+	return c.bot
+}
+
+func (c *Client) GetUpdatesChan(tgbotapi.UpdateConfig ) {
+
 }

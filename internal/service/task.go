@@ -24,7 +24,7 @@ func (t TaskService) CreateTask(ctx context.Context, userID int64, title, deadli
 	task.Deadline = deadline
 
 	err = t.Repo.Create(ctx, &task)
-
+	
 	return  err
 }
 

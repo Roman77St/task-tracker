@@ -11,7 +11,6 @@ type TaskService struct {
 	Repo domain.TaskRepository
 }
 func (t TaskService) CreateTask(ctx context.Context, userID int64, title, deadlineStr string) error {
-	var task domain.Task
 	deadline, err := ParseTime(deadlineStr)
 	if err != nil {
 		return err
@@ -19,12 +18,15 @@ func (t TaskService) CreateTask(ctx context.Context, userID int64, title, deadli
 	if time.Since(deadline) > 0 {
 		return fmt.Errorf("время выполнения не должно быть в прошлом")
 	}
-	task.UserID = userID
-	task.Title = title
-	task.Deadline = deadline
+
+	task := domain.Task{
+		UserID: userID,
+		Title: title,
+		Deadline: deadline,
+	}
 
 	err = t.Repo.Create(ctx, &task)
-	
+
 	return  err
 }
 

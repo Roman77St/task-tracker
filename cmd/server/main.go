@@ -20,7 +20,11 @@ func main() {
 	defer cancel()
 	// Инициализируем начальный логгер
 	programLevel := &slog.LevelVar{}
-	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: programLevel})
+	// для продакшн
+	// logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: programLevel})
+	// для разработки
+	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: programLevel})
+
 	slog.SetDefault(slog.New(logHandler))
 
 	// Загружаем переменные среды из файла .envh.Bot.SendMessage(m.Chat.ID, "Пример: /add Задача, 20.01.2026 15:00")
@@ -57,6 +61,12 @@ func main() {
 	taskService := service.TaskService{
 		Repo: db,
 	}
+
+	// Запуск воркера уведомлений
+	go func() {
+		slog.Info("Starting a background notification worker")
+		taskService.StartNotificationWorker(ctx, bot)
+	}()
 
 	handler := telegramHandler.Handler{
 		Bot: bot,

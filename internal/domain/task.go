@@ -17,4 +17,5 @@ type Task struct {
 type TaskRepository interface {
 	Create(context.Context, *Task) error
 	GetActiveTasks(context.Context) ([]Task, error)
+	MarkAsNotified(context.Context, int) error
 }

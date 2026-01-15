@@ -33,6 +33,7 @@ func (h Handler) Start(ctx context.Context) error {
 			if update.Message == nil {
 				continue
 			}
+			slog.Info("Новое сообщение", "от", update.Message.From.UserName, "текст", update.Message.Text)
 			requestCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 			if update.Message.IsCommand() {
 				switch update.Message.Command() {
@@ -71,7 +72,7 @@ func (h Handler) handleAddCommand(ctx context.Context, m *tgbotapi.Message) {
 	err := h.TaskService.CreateTask(ctx, userID, title, deadlineStr)
 	if err != nil {
 		slog.Error("Task creation filed", "user_id", m.Chat.ID, "error", err)
-		h.Bot.SendMessage(m.Chat.ID, "Ошибка создания задачи. Обратитесь к администратору.")
+		h.Bot.SendMessage(m.Chat.ID, "Ошибка создания задачи.")
 		return
 	}
 

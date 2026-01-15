@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"task-traker/internal/domain"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -44,5 +47,31 @@ func (r *Repository) Create(ctx context.Context, task *domain.Task) error {
 }
 
 func (r *Repository) GetActiveTasks(ctx context.Context) ([]domain.Task, error) {
-	return  nil, nil
+	query := `
+		SELECT id, user_id, title, deadline, notified, created_at
+		FROM tasks
+		WHERE notified = false AND deadline <= $1;
+	`
+	rows, err := r.DB.Query(ctx, query, time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("ошибка GetActiveTasks: %w", err)
+	}
+	defer rows.Close()
+
+	activeTasks, err := pgx.CollectRows(rows, pgx.RowToStructByName[domain.Task])
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect rows: %w", err)
+	}
+
+	return activeTasks, nil
+}
+
+func (r *Repository) MarkAsNotified(ctx context.Context, taskID int) error {
+	query := `UPDATE tasks SET notified = true
+			  WHERE id = $1;`
+	_, err := r.DB.Exec(ctx, query, taskID)
+	if err != nil {
+		return fmt.Errorf("marcAsNotified error: %v", err)
+	}
+	return nil
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+
 	"task-traker/internal/domain"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -50,20 +50,33 @@ func (r *Repository) GetActiveTasks(ctx context.Context) ([]domain.Task, error) 
 	query := `
 		SELECT id, user_id, title, deadline, notified, created_at
 		FROM tasks
-		WHERE notified = false AND deadline <= $1;
+		WHERE notified = false
+			AND deadline <= (NOW() + INTERVAL '15 minutes');
 	`
-	rows, err := r.DB.Query(ctx, query, time.Now())
+	rows, err := r.DB.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка GetActiveTasks: %w", err)
 	}
 	defer rows.Close()
 
-	activeTasks, err := pgx.CollectRows(rows, pgx.RowToStructByName[domain.Task])
-	if err != nil {
-		return nil, fmt.Errorf("failed to collect rows: %w", err)
-	}
+	return pgx.CollectRows(rows, pgx.RowToStructByName[domain.Task])
+}
 
-	return activeTasks, nil
+
+func (r *Repository) GetTasksByUserID(ctx context.Context, userID int64) ([]domain.Task, error) {
+	query := `
+	SELECT id, user_id, title, deadline, notified, created_at
+	FROM tasks
+	WHERE notified = false AND user_id = $1
+	ORDER BY deadline;
+	`
+	rows, err := r.DB.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка GetTasksByUserID: %w", err)
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, pgx.RowToStructByName[domain.Task])
 }
 
 func (r *Repository) MarkAsNotified(ctx context.Context, taskID int) error {

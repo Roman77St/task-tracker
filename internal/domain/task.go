@@ -18,4 +18,5 @@ type TaskRepository interface {
 	Create(context.Context, *Task) error
 	GetActiveTasks(context.Context) ([]Task, error)
 	MarkAsNotified(context.Context, int) error
+	GetTasksByUserID(context.Context, int64) ([]Task, error)
 }

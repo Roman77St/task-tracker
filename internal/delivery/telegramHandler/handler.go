@@ -2,6 +2,7 @@ package telegramHandler
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"task-traker/internal/service"
@@ -41,6 +42,8 @@ func (h Handler) Start(ctx context.Context) error {
 					h.handleStartCommand(requestCtx, update.Message)
 				case "add":
 					h.handleAddCommand(requestCtx, update.Message)
+				case "list":
+					h.handleListCommand(requestCtx, update.Message)
 				default:
 					h.Bot.SendMessage(update.Message.Chat.ID, "Неизвестная команда")
 				}
@@ -77,4 +80,26 @@ func (h Handler) handleAddCommand(ctx context.Context, m *tgbotapi.Message) {
 	}
 
 	h.Bot.SendMessage(m.Chat.ID, "Задача сохранена!")
+}
+
+func (h Handler) handleListCommand(ctx context.Context, m *tgbotapi.Message) {
+	userID := m.Chat.ID
+	tasks, err := h.TaskService.Repo.GetTasksByUserID(ctx, userID)
+	if err != nil {
+		slog.Error("handleListCommand error", "error", err)
+		h.Bot.SendMessage(userID, "Ошибка сервера")
+		return
+	}
+	if len(tasks) == 0 {
+		h.Bot.SendMessage(userID, "У вас нет активных задач🎉")
+		return
+	}
+	var msg strings.Builder
+	msg.WriteString("📋 Ваши активные задачи:\n\n")
+	for i, task := range tasks {
+		deadlineStr := task.Deadline.Format("02.01.2006 15:04")
+		s := fmt.Sprintf("%d. %s\n ⏰ %s\n\n", i+1, task.Title, deadlineStr)
+		msg.WriteString(s)
+	}
+	h.Bot.SendMessage(userID, msg.String())
 }

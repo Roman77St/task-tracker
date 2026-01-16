@@ -49,18 +49,28 @@ func (h Handler) Start(ctx context.Context) error {
 			if !ok {
 				return nil
 			}
+
+			requestCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+
+			func () {
+				defer cancel()
+			if update.CallbackQuery != nil {
+				h.handleDeleteTask(requestCtx, update.CallbackQuery)
+				return
+			}
+
 			if update.Message == nil {
-				continue
+				return
 			}
 
 			slog.Info("Новое сообщение", "от", update.Message.From.UserName, "текст", update.Message.Text)
 			userID := update.Message.Chat.ID
-			requestCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 			session, ok := h.Sessions[userID]
 			if !ok {
 				session = &UserSession{State: StateIdle}
 				h.Sessions[userID] = session
 			}
+
 
 			if update.Message.IsCommand() {
 				switch update.Message.Command() {
@@ -74,8 +84,7 @@ func (h Handler) Start(ctx context.Context) error {
 				default:
 					h.Bot.SendMessage(userID, "Неизвестная команда")
 				}
-				cancel()
-				continue
+				return
 			}
 
 			switch session.State {
@@ -95,8 +104,7 @@ func (h Handler) Start(ctx context.Context) error {
 					h.Bot.SendMessage(userID, "Используйте кнопки меню или команды.")
 				}
 			}
-
-			cancel()
+			}()
 		}
 	}
 }
@@ -107,7 +115,6 @@ func (h Handler) handleStartCommand(ctx context.Context, m *tgbotapi.Message) {
 	msg.ReplyMarkup = mainMenuKeyboard()
 	h.Bot.SendMessageWithMarkup(m.From.ID, msg)
 }
-
 
 func (h Handler) handleListCommand(ctx context.Context, m *tgbotapi.Message) {
 	userID := m.Chat.ID
@@ -121,14 +128,17 @@ func (h Handler) handleListCommand(ctx context.Context, m *tgbotapi.Message) {
 		h.Bot.SendMessage(userID, "У вас нет активных задач🎉")
 		return
 	}
-	var msg strings.Builder
-	msg.WriteString("📋 Ваши активные задачи:\n\n")
+
+	h.Bot.SendMessage(userID, "📋 Ваши активные задачи:")
 	for i, task := range tasks {
 		deadlineStr := task.Deadline.Format("02.01.2006 15:04")
-		s := fmt.Sprintf("%d. %s\n ⏰ %s\n\n", i+1, task.Title, deadlineStr)
-		msg.WriteString(s)
+		text := fmt.Sprintf("%d. %s\n ⏰ %s\n\n", i+1, task.Title, deadlineStr)
+		keyboard := deleteKeyboard(task.ID)
+
+		msg := tgbotapi.NewMessage(userID, text)
+		msg.ReplyMarkup = keyboard
+		h.Bot.SendMessageWithMarkup(userID, msg)
 	}
-	h.Bot.SendMessage(userID, msg.String())
 }
 
 func (h Handler) handleAddCommand(ctx context.Context, m *tgbotapi.Message) {
@@ -151,4 +161,26 @@ func (h Handler) handleAddDeadlineTask(ctx context.Context, m *tgbotapi.Message,
 	h.Bot.SendMessage(m.From.ID, "✅ Задача сохранена!")
 	session.State = StateIdle
 	session.Title = ""
+}
+
+func (h Handler) handleDeleteTask(ctx context.Context, cb *tgbotapi.CallbackQuery) {
+	// Убираем часики
+	callbackConfig := tgbotapi.NewCallback(cb.ID, "")
+	h.Bot.GetBotAPI().Request(callbackConfig)
+
+	data := cb.Data
+	if after, ok :=strings.CutPrefix(data, "delete_"); ok {
+		idStr := after
+
+		err := h.TaskService.Repo.DeleteByID(ctx, idStr)
+		if err != nil {
+			slog.Error("Ошибка удаления", "id", idStr, "error", err)
+            h.Bot.SendMessage(cb.Message.Chat.ID, "Не удалось удалить задачу")
+            return
+		}
+		editMsg := tgbotapi.NewEditMessageText(cb.Message.Chat.ID, cb.Message.MessageID, "🗑 Задача удалена")
+		if _, err := h.Bot.GetBotAPI().Send(editMsg); err != nil {
+            slog.Error("Ошибка редактирования сообщения", "error", err)
+        }
+	}
 }

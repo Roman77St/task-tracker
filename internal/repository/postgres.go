@@ -88,29 +88,34 @@ func (r *Repository) MarkAsNotified(ctx context.Context, taskID int) error {
 	return nil
 }
 
-// Переделать в inline-кнопки
-func (r *Repository) Delete(ctx context.Context, userID int64, taskNumber int) error {
-	offset := taskNumber - 1
-	if offset < 0 {
-		return fmt.Errorf("неверный номер задачи")
-	}
+// func (r *Repository) Delete(ctx context.Context, userID int64, taskNumber int) error {
+// 	offset := taskNumber - 1
+// 	if offset < 0 {
+// 		return fmt.Errorf("неверный номер задачи")
+// 	}
 
-	query := `
-	DELETE FROM tasks
-	WHERE id = (
-	SELECT id
-	FROM tasks
-	WHERE notified = false AND user_id = $1
-	ORDER BY deadline
-	LIMIT 1
-	OFFSET $2);
-	`
-	res, err := r.DB.Exec(ctx, query, userID, taskNumber)
-	if err != nil {
-		return fmt.Errorf("Delete: %w", err)
-	}
-	if res.RowsAffected() == 0 {
-		return fmt.Errorf("задача под номером %d не найдена", taskNumber)
-	}
-	return nil
+// 	query := `
+// 	DELETE FROM tasks
+// 	WHERE id = (
+// 	SELECT id
+// 	FROM tasks
+// 	WHERE notified = false AND user_id = $1
+// 	ORDER BY deadline
+// 	LIMIT 1
+// 	OFFSET $2);
+// 	`
+// 	res, err := r.DB.Exec(ctx, query, userID, taskNumber)
+// 	if err != nil {
+// 		return fmt.Errorf("Delete: %w", err)
+// 	}
+// 	if res.RowsAffected() == 0 {
+// 		return fmt.Errorf("задача под номером %d не найдена", taskNumber)
+// 	}
+// 	return nil
+// }
+
+func (r *Repository) DeleteByID(ctx context.Context, id string) error {
+	query := "DELETE FROM tasks WHERE id = $1;"
+	_, err := r.DB.Exec(ctx, query, id)
+	return err
 }

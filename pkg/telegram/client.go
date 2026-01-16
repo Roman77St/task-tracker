@@ -25,6 +25,12 @@ func (c *Client) SendMessage(chatID int64, text string) error {
 	return err
 }
 
+func (c *Client) SendMessageWithMarkup(chatID int64, msg tgbotapi.MessageConfig) {
+	if _, err := c.bot.Send(msg); err != nil {
+		slog.Error("error sending message with buttons", "error", err)
+	}
+}
+
 func (c *Client) GetBotAPI() *tgbotapi.BotAPI {
 	return c.bot
 }

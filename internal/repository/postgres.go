@@ -62,7 +62,6 @@ func (r *Repository) GetActiveTasks(ctx context.Context) ([]domain.Task, error) 
 	return pgx.CollectRows(rows, pgx.RowToStructByName[domain.Task])
 }
 
-
 func (r *Repository) GetTasksByUserID(ctx context.Context, userID int64) ([]domain.Task, error) {
 	query := `
 	SELECT id, user_id, title, deadline, notified, created_at
@@ -85,6 +84,33 @@ func (r *Repository) MarkAsNotified(ctx context.Context, taskID int) error {
 	_, err := r.DB.Exec(ctx, query, taskID)
 	if err != nil {
 		return fmt.Errorf("marcAsNotified error: %v", err)
+	}
+	return nil
+}
+
+// Переделать в inline-кнопки
+func (r *Repository) Delete(ctx context.Context, userID int64, taskNumber int) error {
+	offset := taskNumber - 1
+	if offset < 0 {
+		return fmt.Errorf("неверный номер задачи")
+	}
+
+	query := `
+	DELETE FROM tasks
+	WHERE id = (
+	SELECT id
+	FROM tasks
+	WHERE notified = false AND user_id = $1
+	ORDER BY deadline
+	LIMIT 1
+	OFFSET $2);
+	`
+	res, err := r.DB.Exec(ctx, query, userID, taskNumber)
+	if err != nil {
+		return fmt.Errorf("Delete: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return fmt.Errorf("задача под номером %d не найдена", taskNumber)
 	}
 	return nil
 }

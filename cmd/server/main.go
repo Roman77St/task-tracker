@@ -69,8 +69,9 @@ func main() {
 	}()
 
 	handler := telegramHandler.Handler{
-		Bot: bot,
+		Bot:         bot,
 		TaskService: &taskService,
+		Sessions: make(map[int64]*telegramHandler.UserSession),
 	}
 
 	err = handler.Start(ctx)

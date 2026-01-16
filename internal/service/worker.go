@@ -8,13 +8,13 @@ import (
 	"time"
 )
 
-func (s *TaskService) StartNotificationWorker(ctx context.Context, bot *telegram.Client)  {
+func (s *TaskService) StartNotificationWorker(ctx context.Context, bot *telegram.Client) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			tasks, err := s.Repo.GetActiveTasks(ctx)
@@ -30,5 +30,5 @@ func (s *TaskService) StartNotificationWorker(ctx context.Context, bot *telegram
 				}
 			}
 		}
-    }
+	}
 }

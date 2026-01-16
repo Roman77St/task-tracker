@@ -10,6 +10,7 @@ import (
 type TaskService struct {
 	Repo domain.TaskRepository
 }
+
 func (t TaskService) CreateTask(ctx context.Context, userID int64, title, deadlineStr string) error {
 	deadline, err := ParseTime(deadlineStr)
 	if err != nil {
@@ -20,14 +21,14 @@ func (t TaskService) CreateTask(ctx context.Context, userID int64, title, deadli
 	}
 
 	task := domain.Task{
-		UserID: userID,
-		Title: title,
+		UserID:   userID,
+		Title:    title,
 		Deadline: deadline,
 	}
 
 	err = t.Repo.Create(ctx, &task)
 
-	return  err
+	return err
 }
 
 func ParseTime(s string) (time.Time, error) {
@@ -37,5 +38,5 @@ func ParseTime(s string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, fmt.Errorf("некорректно введенная строка времени, %v", err)
 	}
-	return  parsedTime, nil
+	return parsedTime, nil
 }

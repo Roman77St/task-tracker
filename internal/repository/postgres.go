@@ -16,7 +16,14 @@ type Repository struct {
 }
 
 func InitDB(ctx context.Context) (*Repository, error) {
-	connStr := os.Getenv("DATABASE_URL")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbHost := os.Getenv("DB_HOST") // В Docker Compose это будет "db"
+	dbPort := os.Getenv("DB_PORT") // В Docker Compose это будет "5432"
+	dbName := os.Getenv("DB_NAME")
+
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", dbUser, dbPass, dbHost, dbPort, dbName)
+
 	conn, err := pgxpool.New(ctx, connStr)
 	if err != nil {
 		return nil, err

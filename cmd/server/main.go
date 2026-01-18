@@ -27,11 +27,12 @@ func main() {
 
 	slog.SetDefault(slog.New(logHandler))
 
-	// Загружаем переменные среды из файла .envh.Bot.SendMessage(m.Chat.ID, "Пример: /add Задача, 20.01.2026 15:00")
+	// Загружаем переменные среды из файла .env
 	err := godotenv.Load()
 	if err != nil {
-		slog.Error("Error loading .enf file")
-		os.Exit(1)
+		slog.Error("Error loading .env file", "text", "Direct loading of environment variables is possible.")
+		// при загрузке в docker (docker run --env-file .env my-app-image) os.Exit не нужен!
+		// os.Exit(1)
 	}
 
 	// Загружаем конфигурацию

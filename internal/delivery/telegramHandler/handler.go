@@ -142,7 +142,7 @@ func (h Handler) handleListCommand(ctx context.Context, m *tgbotapi.Message) {
 }
 
 func (h Handler) handleAddCommand(ctx context.Context, m *tgbotapi.Message) {
-	h.Bot.SendMessage(m.From.ID, "Напишите текс задачи")
+	h.Bot.SendMessage(m.From.ID, "Напишите текст задачи")
 }
 
 func (h Handler) handleAddTitleTask(ctx context.Context, m *tgbotapi.Message, session *UserSession){

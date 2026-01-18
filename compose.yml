@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:18
+    container_name: postgres_container
+    command: >
+      postgres
+      -c log_timezone=Europe/Moscow
+      -c TimeZone=Europe/Moscow
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      TZ: Europe/Moscow
+    ports:
+      - "5433:5432" # 5433 это только у меня, обычно 5432:5432
+    volumes:
+      - pg_volume:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bot_container
+    depends_on:
+      db:
+        condition: service_healthy
+
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - TZ=Europe/Moscow
+    restart: unless-stopped
+
+
+volumes:
+  pg_volume:
+
+# Пересобрать только бота: docker-compose up -d --build app
+# docker logs -f bot_container
+# Очистить базу данных (вместе с томом): docker-compose down -v

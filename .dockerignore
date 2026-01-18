@@ -1,0 +1,32 @@
+# Скомпилированные файлы и бинарники
+bin/
+bot
+*.exe
+*.test
+*.prof
+
+# Зависимости (мы их качаем внутри Docker через go mod download)
+vendor/
+
+# Переменные окружения и секреты
+.env
+*.pem
+*.key
+
+# Логи и временные файлы
+*.log
+tmp/
+.temp/
+
+# Файлы IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Система и Docker
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+.dockerignore

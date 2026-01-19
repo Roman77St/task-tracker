@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"task-traker/internal/config"
+	httpHandler "task-traker/internal/delivery/http"
 	"task-traker/internal/delivery/telegramHandler"
 	"task-traker/internal/repository"
 	"task-traker/internal/service"
@@ -69,14 +73,42 @@ func main() {
 		taskService.StartNotificationWorker(ctx, bot)
 	}()
 
-	handler := telegramHandler.Handler{
+	telegramHandler := telegramHandler.Handler{
 		Bot:         bot,
 		TaskService: &taskService,
 		Sessions: make(map[int64]*telegramHandler.UserSession),
 	}
+	// Запуск телеграм бота
+    go func() {
+		slog.Info("Starting a telegram bot")
+		err = telegramHandler.Start(ctx)
+		if err != nil {
+			slog.Error("Telegram answer", "error", err)
+		}
+	}()
 
-	err = handler.Start(ctx)
-	if err != nil {
-		slog.Error("Telegram answer", "error", err)
+	httpH := httpHandler.NewHandler(&taskService)
+	addr := os.Getenv("HTTP_ADDR")
+	srv := &http.Server{
+		Addr : addr,
+		Handler: httpH.InitRouter(),
+		ReadTimeout: 10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
+
+	go func ()  {
+		text := fmt.Sprintf("Запуск HTTP сервера на %s", addr)
+		slog.Info(text)
+		err := srv.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed{
+			slog.Error("HTTP server error", "error", err)
+		}
+	}()
+
+	<-ctx.Done()
+	slog.Info("Shutting down gracefully...")
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelShutdown()
+	srv.Shutdown(shutdownCtx)
+	slog.Info("App exited")
 }

@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  bot:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
@@ -29,7 +29,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
     env_file:
       - .env
     environment:
@@ -37,6 +36,8 @@ services:
       - DB_PORT=5432
       - TZ=Europe/Moscow
     restart: unless-stopped
+    ports:
+      - 8080:8080
 
 
 volumes:

@@ -36,6 +36,8 @@ COPY --from=builder /app/scripts/entrypoint.sh ./entrypoint.sh
 # или параметры запуска (docker run --env-file .env my-app-image)
 # COPY --from=builder /app/.env .
 
+EXPOSE 8080
+
 RUN chmod +x ./entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]

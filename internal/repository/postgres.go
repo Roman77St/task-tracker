@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"task-traker/internal/domain"
 
@@ -124,5 +125,16 @@ func (r *Repository) MarkAsNotified(ctx context.Context, taskID int) error {
 func (r *Repository) DeleteByID(ctx context.Context, id string) error {
 	query := "DELETE FROM tasks WHERE id = $1;"
 	_, err := r.DB.Exec(ctx, query, id)
+	return err
+}
+
+func (r *Repository) SaveAuthCode(ctx context.Context, userID int64, code string, expiry time.Time) error {
+	query := `
+        INSERT INTO auth_codes (user_id, code, expires_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id) DO UPDATE
+        SET code = EXCLUDED.code, expires_at = EXCLUDED.expires_at
+    `
+	_, err := r.DB.Exec(ctx, query, userID, code, expiry)
 	return err
 }

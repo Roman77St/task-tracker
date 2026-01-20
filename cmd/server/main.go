@@ -76,10 +76,10 @@ func main() {
 	telegramHandler := telegramHandler.Handler{
 		Bot:         bot,
 		TaskService: &taskService,
-		Sessions: make(map[int64]*telegramHandler.UserSession),
+		Sessions:    make(map[int64]*telegramHandler.UserSession),
 	}
 	// Запуск телеграм бота
-    go func() {
+	go func() {
 		slog.Info("Starting a telegram bot")
 		err = telegramHandler.Start(ctx)
 		if err != nil {
@@ -90,17 +90,17 @@ func main() {
 	httpH := httpHandler.NewHandler(&taskService)
 	addr := os.Getenv("HTTP_ADDR")
 	srv := &http.Server{
-		Addr : addr,
-		Handler: httpH.InitRouter(),
-		ReadTimeout: 10 * time.Second,
+		Addr:         addr,
+		Handler:      httpH.InitRouter(),
+		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
-	go func ()  {
+	go func() {
 		text := fmt.Sprintf("Запуск HTTP сервера на %s", addr)
 		slog.Info(text)
 		err := srv.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed{
+		if err != nil && err != http.ErrServerClosed {
 			slog.Error("HTTP server error", "error", err)
 		}
 	}()

@@ -20,4 +20,5 @@ type TaskRepository interface {
 	MarkAsNotified(context.Context, int) error
 	GetTasksByUserID(context.Context, int64) ([]Task, error)
 	DeleteByID(context.Context, string) error
+	SaveAuthCode(context.Context, int64, string, time.Time) error
 }

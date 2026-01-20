@@ -4,18 +4,16 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"task-traker/internal/service"
 )
-
 
 type Handler struct {
 	service *service.TaskService
 }
 
 type CreateTaskRequest struct {
-	UserID int64 `json:"user_id"`
-	Title string `json:"title"`
+	UserID   int64  `json:"user_id"`
+	Title    string `json:"title"`
 	Deadline string `json:"deadline"`
 }
 
@@ -28,18 +26,20 @@ func NewHandler(s *service.TaskService) *Handler {
 func (h *Handler) InitRouter() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /tasks", h.getTasks)
-	mux.HandleFunc("POST /tasks", h.createTask)
-	mux.HandleFunc("DELETE /tasks/{id}", h.deleteTasks)
+	mux.Handle("GET /tasks", h.authMiddleware(http.HandlerFunc(h.getTasks)))
+	mux.Handle("POST /tasks", h.authMiddleware(http.HandlerFunc(h.createTask)))
+	mux.Handle("DELETE /tasks/{id}", h.authMiddleware(http.HandlerFunc(h.deleteTasks)))
 
-	return LoggingMiddleWare(mux)
+	return LoggingMiddleware(mux)
 }
 
-func (h *Handler) getTasks(w http.ResponseWriter, r *http.Request)  {
-	// нужна авторизация!!! Только для тестов.
-	userIDStr := r.URL.Query().Get("user")
-	userID, _ := strconv.ParseInt(userIDStr, 10, 64)
-
+func (h *Handler) getTasks(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(int64)
+	if !ok {
+		slog.Error("UserID not found in context")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	tasks, err := h.service.Repo.GetTasksByUserID(r.Context(), userID)
 	if err != nil {
 		slog.Error("HTTP getTasks error", "error", err)
@@ -78,7 +78,7 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"created"}`))
 }
 
-func (h Handler) deleteTasks(w http.ResponseWriter, r *http.Request)  {
+func (h Handler) deleteTasks(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	if idStr == "" {
 		http.Error(w, "Missing task ID", http.StatusBadRequest)

@@ -28,7 +28,7 @@ type UserSession struct {
 type Handler struct {
 	Bot         *telegram.Client
 	TaskService *service.TaskService
-	Sessions map[int64]*UserSession
+	Sessions    map[int64]*UserSession
 }
 
 func (h Handler) Start(ctx context.Context) error {
@@ -52,58 +52,59 @@ func (h Handler) Start(ctx context.Context) error {
 
 			requestCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 
-			func () {
+			func() {
 				defer cancel()
-			if update.CallbackQuery != nil {
-				h.handleDeleteTask(requestCtx, update.CallbackQuery)
-				return
-			}
-
-			if update.Message == nil {
-				return
-			}
-
-			slog.Info("Новое сообщение", "от", update.Message.From.UserName, "текст", update.Message.Text)
-			userID := update.Message.Chat.ID
-			session, ok := h.Sessions[userID]
-			if !ok {
-				session = &UserSession{State: StateIdle}
-				h.Sessions[userID] = session
-			}
-
-
-			if update.Message.IsCommand() {
-				switch update.Message.Command() {
-				case "start":
-					h.handleStartCommand(requestCtx, update.Message)
-				case "add":
-					h.handleAddCommand(requestCtx, update.Message)
-					session.State = StateWaitTaskTitle
-				case "list":
-					h.handleListCommand(requestCtx, update.Message)
-				default:
-					h.Bot.SendMessage(userID, "Неизвестная команда")
+				if update.CallbackQuery != nil {
+					h.handleDeleteTask(requestCtx, update.CallbackQuery)
+					return
 				}
-				return
-			}
 
-			switch session.State {
-			case StateWaitTaskTitle:
-				h.handleAddTitleTask(requestCtx, update.Message, session)
-			case StateWaitTaskDeadline:
-				h.handleAddDeadlineTask(requestCtx, update.Message, session)
-			case StateIdle:
-				switch update.Message.Text {
-				case "➕ Добавить задачу":
-					h.handleAddCommand(requestCtx, update.Message)
-					session.State = StateWaitTaskTitle
-				case "📋 Все задачи":
-					h.handleListCommand(requestCtx, update.Message)
-					// Добавить логику
-				default:
-					h.Bot.SendMessage(userID, "Используйте кнопки меню или команды.")
+				if update.Message == nil {
+					return
 				}
-			}
+
+				slog.Info("Новое сообщение", "от", update.Message.From.UserName, "текст", update.Message.Text)
+				userID := update.Message.Chat.ID
+				session, ok := h.Sessions[userID]
+				if !ok {
+					session = &UserSession{State: StateIdle}
+					h.Sessions[userID] = session
+				}
+
+				if update.Message.IsCommand() {
+					switch update.Message.Command() {
+					case "start":
+						h.handleStartCommand(requestCtx, update.Message)
+					case "add":
+						h.handleAddCommand(requestCtx, update.Message)
+						session.State = StateWaitTaskTitle
+					case "list":
+						h.handleListCommand(requestCtx, update.Message)
+					case "login":
+						h.handleLoginCommand(requestCtx, update.Message)
+					default:
+						h.Bot.SendMessage(userID, "Неизвестная команда")
+					}
+					return
+				}
+
+				switch session.State {
+				case StateWaitTaskTitle:
+					h.handleAddTitleTask(requestCtx, update.Message, session)
+				case StateWaitTaskDeadline:
+					h.handleAddDeadlineTask(requestCtx, update.Message, session)
+				case StateIdle:
+					switch update.Message.Text {
+					case "➕ Добавить задачу":
+						h.handleAddCommand(requestCtx, update.Message)
+						session.State = StateWaitTaskTitle
+					case "📋 Все задачи":
+						h.handleListCommand(requestCtx, update.Message)
+						// Добавить логику
+					default:
+						h.Bot.SendMessage(userID, "Используйте кнопки меню или команды.")
+					}
+				}
 			}()
 		}
 	}
@@ -145,13 +146,13 @@ func (h Handler) handleAddCommand(ctx context.Context, m *tgbotapi.Message) {
 	h.Bot.SendMessage(m.From.ID, "Напишите текст задачи")
 }
 
-func (h Handler) handleAddTitleTask(ctx context.Context, m *tgbotapi.Message, session *UserSession){
+func (h Handler) handleAddTitleTask(ctx context.Context, m *tgbotapi.Message, session *UserSession) {
 	session.Title = m.Text
 	session.State = StateWaitTaskDeadline
 	h.Bot.SendMessage(m.Chat.ID, "Теперь введите дату и время (ДД.ММ.ГГГГ ЧЧ:ММ):")
 }
 
-func (h Handler) handleAddDeadlineTask(ctx context.Context, m *tgbotapi.Message, session *UserSession){
+func (h Handler) handleAddDeadlineTask(ctx context.Context, m *tgbotapi.Message, session *UserSession) {
 	err := h.TaskService.CreateTask(ctx, m.From.ID, session.Title, m.Text)
 	if err != nil {
 		slog.Error("Task creation filed", "error", err)
@@ -169,18 +170,33 @@ func (h Handler) handleDeleteTask(ctx context.Context, cb *tgbotapi.CallbackQuer
 	h.Bot.GetBotAPI().Request(callbackConfig)
 
 	data := cb.Data
-	if after, ok :=strings.CutPrefix(data, "delete_"); ok {
+	if after, ok := strings.CutPrefix(data, "delete_"); ok {
 		idStr := after
 
 		err := h.TaskService.Repo.DeleteByID(ctx, idStr)
 		if err != nil {
 			slog.Error("Ошибка удаления", "id", idStr, "error", err)
-            h.Bot.SendMessage(cb.Message.Chat.ID, "Не удалось удалить задачу")
-            return
+			h.Bot.SendMessage(cb.Message.Chat.ID, "Не удалось удалить задачу")
+			return
 		}
 		editMsg := tgbotapi.NewEditMessageText(cb.Message.Chat.ID, cb.Message.MessageID, "🗑 Задача удалена")
 		if _, err := h.Bot.GetBotAPI().Send(editMsg); err != nil {
-            slog.Error("Ошибка редактирования сообщения", "error", err)
-        }
+			slog.Error("Ошибка редактирования сообщения", "error", err)
+		}
 	}
+}
+
+func (h Handler) handleLoginCommand(ctx context.Context, m *tgbotapi.Message) {
+	code, err := h.TaskService.GenerateAuthCode(ctx, m.Chat.ID)
+	if err != nil {
+		slog.Error("Auth code gen error", "error", err)
+		h.Bot.SendMessage(m.Chat.ID, "❌ Ошибка генерации кода")
+		return
+	}
+	msg := fmt.Sprintf("🔐 *Авторизация*\n\n"+
+		"Ваш ID: %d\n"+
+		"Ваш код: %s",
+		m.Chat.ID, code)
+
+	h.Bot.SendMessage(m.Chat.ID, msg)
 }

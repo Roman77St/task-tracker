@@ -109,6 +109,9 @@ func main() {
 	slog.Info("Shutting down gracefully...")
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelShutdown()
-	srv.Shutdown(shutdownCtx)
+	err = srv.Shutdown(shutdownCtx)
+	if err != nil {
+		slog.Error("Server forced to shutdown", "error", err)
+	}
 	slog.Info("App exited")
 }

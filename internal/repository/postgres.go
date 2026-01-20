@@ -138,3 +138,23 @@ func (r *Repository) SaveAuthCode(ctx context.Context, userID int64, code string
 	_, err := r.DB.Exec(ctx, query, userID, code, expiry)
 	return err
 }
+
+func (r *Repository) VerifyAuthCode(ctx context.Context, userID int64, code string) (bool, error) {
+	var dbCode string
+	var expiresAt time.Time
+
+	query := `SELECT code, expires_at FROM auth_codes WHERE user_id = $1`
+	err := r.DB.QueryRow(ctx, query, userID).Scan(&dbCode, &expiresAt)
+
+	if err != nil {
+		return false, err
+	}
+
+	if dbCode != code || time.Now().After(expiresAt) {
+		return false, nil
+	}
+
+	r.DB.Exec(ctx, "DELETE FROM auth_codes WHERE user_id = $1", userID)
+
+	return true, nil
+}

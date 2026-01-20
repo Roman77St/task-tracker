@@ -21,4 +21,5 @@ type TaskRepository interface {
 	GetTasksByUserID(context.Context, int64) ([]Task, error)
 	DeleteByID(context.Context, string) error
 	SaveAuthCode(context.Context, int64, string, time.Time) error
+	VerifyAuthCode(context.Context, int64, string) (bool, error)
 }

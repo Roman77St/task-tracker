@@ -11,10 +11,18 @@ type Handler struct {
 	service *service.TaskService
 }
 
+type contextKey string
+const userIDKey contextKey = "user_id"
+
 type CreateTaskRequest struct {
 	UserID   int64  `json:"user_id"`
 	Title    string `json:"title"`
 	Deadline string `json:"deadline"`
+}
+
+type loginRequest struct {
+	UserID int64  `json:"user_id"`
+	Code   string `json:"code"`
 }
 
 func NewHandler(s *service.TaskService) *Handler {
@@ -29,12 +37,13 @@ func (h *Handler) InitRouter() http.Handler {
 	mux.Handle("GET /tasks", h.authMiddleware(http.HandlerFunc(h.getTasks)))
 	mux.Handle("POST /tasks", h.authMiddleware(http.HandlerFunc(h.createTask)))
 	mux.Handle("DELETE /tasks/{id}", h.authMiddleware(http.HandlerFunc(h.deleteTasks)))
+	mux.HandleFunc("POST /login", h.login)
 
 	return LoggingMiddleware(mux)
 }
 
 func (h *Handler) getTasks(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(int64)
+	userID, ok := r.Context().Value(userIDKey).(int64)
 	if !ok {
 		slog.Error("UserID not found in context")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -91,4 +100,31 @@ func (h Handler) deleteTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
+	var req loginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	isValid, err := h.service.Repo.VerifyAuthCode(r.Context(), req.UserID, req.Code)
+	if err != nil || !isValid {
+		slog.Warn("Failed login attempt", "user_id", req.UserID)
+		http.Error(w, "Invalid or expired code", http.StatusUnauthorized)
+		return
+	}
+
+	token, err := h.service.GenerateToken(req.UserID)
+	if err != nil {
+		slog.Error("JWT generation error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"token": token,
+	})
 }

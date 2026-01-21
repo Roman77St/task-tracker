@@ -12,6 +12,7 @@ type Handler struct {
 }
 
 type contextKey string
+
 const userIDKey contextKey = "user_id"
 
 type CreateTaskRequest struct {

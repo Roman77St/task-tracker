@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"task-traker/internal/domain"
+	"task-traker/internal/repository"
 	"time"
 )
 
 type TaskService struct {
-	Repo domain.TaskRepository
+	Repo  domain.TaskRepository
+	Redis *repository.RedisRepo
 }
 
 func (t TaskService) CreateTask(ctx context.Context, userID int64, title, deadlineStr string) error {

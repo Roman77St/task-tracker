@@ -1,2 +1,22 @@
-structure.txt
+# Секреты
 .env
+*.env
+
+# Бинарники
+bin/
+main
+task-tracker
+
+# IDE
+.idea/
+.vscode/
+
+# Docker данные
+pg_data/
+redis_data/
+
+# Зависимости
+vendor/
+
+# Прочее
+structure.txt

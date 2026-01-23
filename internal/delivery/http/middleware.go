@@ -23,18 +23,15 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 func (h *Handler) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		bad, _ := h.service.Redis.GetToken(r.Context(), "blacklist:"+tokenString)
+		if bad != "" {
+			http.Error(w, "Token is invalidated (logged out)", http.StatusUnauthorized)
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
-			return
-		}
-
-		userID, err := h.service.VerifyToken(parts[1])
+		userID, err := h.service.VerifyToken(tokenString)
 		if err != nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return

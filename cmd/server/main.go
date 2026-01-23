@@ -62,9 +62,12 @@ func main() {
 	}
 	defer db.DB.Close()
 
+	redisRepo := repository.NewRedisRepo(os.Getenv("REDIS_ADDR"))
+
 	// Создаем сервис и передаём ему репозиторий.
 	taskService := service.TaskService{
-		Repo: db,
+		Repo:  db,
+		Redis: redisRepo,
 	}
 
 	// Запуск воркера уведомлений

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 	"task-traker/internal/service"
 )
 
@@ -39,6 +40,7 @@ func (h *Handler) InitRouter() http.Handler {
 	mux.Handle("POST /tasks", h.authMiddleware(http.HandlerFunc(h.createTask)))
 	mux.Handle("DELETE /tasks/{id}", h.authMiddleware(http.HandlerFunc(h.deleteTasks)))
 	mux.HandleFunc("POST /login", h.login)
+	mux.HandleFunc("POST /auth/refresh", h.Refresh)
 
 	return LoggingMiddleware(mux)
 }
@@ -104,28 +106,57 @@ func (h Handler) deleteTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
-	var req loginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+    var req loginRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    tokenPair, err := h.service.Login(r.Context(), req.UserID, req.Code)
+    if err != nil {
+        slog.Warn("Failed login attempt", "user_id", req.UserID, "error", err)
+        http.Error(w, "Invalid or expired code", http.StatusUnauthorized)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(tokenPair)
+}
+
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+	// Получаем Refresh токен
+	var input struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	isValid, err := h.service.Repo.VerifyAuthCode(r.Context(), req.UserID, req.Code)
-	if err != nil || !isValid {
-		slog.Warn("Failed login attempt", "user_id", req.UserID)
-		http.Error(w, "Invalid or expired code", http.StatusUnauthorized)
-		return
-	}
-
-	token, err := h.service.GenerateToken(req.UserID)
+	tokens, err := h.service.Refresh(r.Context(), input.RefreshToken)
 	if err != nil {
-		slog.Error("JWT generation error", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
 		return
 	}
 
+	// Отдаем новую пару Access + Refresh
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"token": token,
-	})
+	json.NewEncoder(w).Encode(tokens)
+}
+
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	authHeader := r.Header.Get("Authorization")
+	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+	var input struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	json.NewDecoder(r.Body).Decode(&input)
+
+	err := h.service.Logout(r.Context(), accessToken, input.RefreshToken)
+	if err != nil {
+		http.Error(w, "Logout failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -41,6 +41,8 @@ func (h *Handler) InitRouter() http.Handler {
 	mux.Handle("DELETE /tasks/{id}", h.authMiddleware(http.HandlerFunc(h.deleteTasks)))
 	mux.HandleFunc("POST /login", h.login)
 	mux.HandleFunc("POST /auth/refresh", h.Refresh)
+	mux.Handle("POST /logout", h.authMiddleware(http.HandlerFunc(h.Logout)))
+
 
 	return LoggingMiddleware(mux)
 }
